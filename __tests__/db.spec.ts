@@ -10,25 +10,25 @@ describe('Transaction using DB ', () => {
         useCreateIndex: true,
         useFindAndModify: false,
         useNewUrlParser: true,
-        useUnifiedTopology: true
+        useUnifiedTopology: true,
     }
 
     mongoose.connection
-        .once('open', () => {
-            console.log('Mongo connected!')
-        })
-        .on('error', err => console.warn('Warning', err))
+    .once('open', () => {
+        console.log('Mongo connected!')
+    })
+    .on('error', err => console.warn('Warning', err))
 
     let transaction: Transaction
 
     const personSchema = new mongoose.Schema({
         age: Number,
-        name: String
+        name: String,
     })
 
     const carSchema = new mongoose.Schema({
         age: Number,
-        name: String
+        name: String,
     })
 
     const Person = mongoose.model('Person', personSchema)
@@ -45,7 +45,7 @@ describe('Transaction using DB ', () => {
      */
     beforeAll(async () => {
         await mongoose.connect(
-            `mongodb://localhost/mongoose-transactions`,
+            `mongodb://127.0.0.1:27017/mongoose-transactions`,
             options
         )
     })
@@ -96,12 +96,12 @@ describe('Transaction using DB ', () => {
 
         const tonyObject: any = {
             age: 28,
-            name: 'Tony'
+            name: 'Tony',
         }
 
         const nicolaObject: any = {
             age: 32,
-            name: 'Nicola'
+            name: 'Nicola',
         }
 
         const id = transaction.insert(person, tonyObject)
@@ -142,12 +142,12 @@ describe('Transaction using DB ', () => {
 
         const tonyObject: any = {
             age: 28,
-            name: 'Tony'
+            name: 'Tony',
         }
 
         const nicolaObject: any = {
             age: 32,
-            name: 'Nicola'
+            name: 'Nicola',
         }
 
         const id = transaction.insert(person, tonyObject)
@@ -214,25 +214,25 @@ describe('Transaction using DB ', () => {
 
             const tonyObject: any = {
                 age: 28,
-                name: 'Tony'
+                name: 'Tony',
             }
 
             const nicolaObject: any = {
                 age: 32,
-                name: 'Nicola'
+                name: 'Nicola',
             }
 
             const id = transaction.insert(person, tonyObject)
 
             transaction.update(person, id, nicolaObject, {
-                new: true
+                new: true,
             })
 
             const fakeId = new mongoose.Types.ObjectId()
 
             transaction.remove(person, fakeId)
 
-            const operations = transaction.getOperations()
+            const operations = await transaction.getOperations()
 
             const transId = await transaction.saveOperations()
 
@@ -240,7 +240,7 @@ describe('Transaction using DB ', () => {
 
             await newTransaction.loadDbTransaction(transId)
 
-            const newOperations = newTransaction.getOperations()
+            const newOperations = await newTransaction.getOperations()
 
             expect(operations).toEqual(newOperations)
 

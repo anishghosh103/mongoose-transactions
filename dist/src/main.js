@@ -35,6 +35,17 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 var mongoose = require("mongoose");
 var mongooseTransactions_collection_1 = require("./mongooseTransactions.collection");
@@ -46,18 +57,22 @@ var Transaction = /** @class */ (function () {
      * @param transactionId - The id of the transaction to load, load the transaction
      *                        from db if you set useDb true (default "")
      */
-    function Transaction(useDb) {
+    function Transaction(useDb, withDeleted) {
         if (useDb === void 0) { useDb = false; }
+        if (withDeleted === void 0) { withDeleted = false; }
         /** Index used for retrieve the executed transaction in the run */
         this.rollbackIndex = 0;
         /** Boolean value for enable or disable saving transaction on db */
         this.useDb = false;
+        /** Boolean value for whether mongoose-delete models to be used */
+        this.withDeleted = false;
         /** The id of the current transaction document on database */
         this.transactionId = '';
         /** The actions to execute on mongoose collections when transaction run is called */
         this.operations = [];
         this.useDb = useDb;
         this.transactionId = '';
+        this.withDeleted = withDeleted;
     }
     /**
      * Load transaction from transaction collection on db.
@@ -70,7 +85,7 @@ var Transaction = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, mongooseTransactions_collection_1.TransactionModel.findOne({
-                            _id: transactionId
+                            _id: transactionId,
                         })
                             .lean()
                             .exec()];
@@ -177,7 +192,7 @@ var Transaction = /** @class */ (function () {
                         _a.label = 2;
                     case 2: return [4 /*yield*/, mongooseTransactions_collection_1.TransactionModel.updateOne({ _id: this.transactionId }, {
                             operations: this.operations,
-                            rollbackIndex: this.rollbackIndex
+                            rollbackIndex: this.rollbackIndex,
                         })];
                     case 3:
                         _a.sent();
@@ -228,7 +243,7 @@ var Transaction = /** @class */ (function () {
             options: options,
             rollbackType: 'remove',
             status: "Pending" /* pending */,
-            type: 'insert'
+            type: 'insert',
         };
         this.operations.push(operation);
         return data._id;
@@ -251,7 +266,7 @@ var Transaction = /** @class */ (function () {
             options: options,
             rollbackType: 'update',
             status: "Pending" /* pending */,
-            type: 'update'
+            type: 'update',
         };
         this.operations.push(operation);
         return operation;
@@ -273,7 +288,7 @@ var Transaction = /** @class */ (function () {
             options: options,
             rollbackType: 'insert',
             status: "Pending" /* pending */,
-            type: 'remove'
+            type: 'remove',
         };
         this.operations.push(operation);
         return operation;
@@ -312,15 +327,15 @@ var Transaction = /** @class */ (function () {
                                                 operation = this.insertTransaction(transaction.model, transaction.data);
                                                 break;
                                             case 'update':
-                                                operation = this.findByIdTransaction(transaction.model, transaction.findId).then(function (findRes) {
+                                                operation = this.findByIdTransaction(transaction.model, transaction.findId, transaction.options).then(function (findRes) {
                                                     transaction.oldModel = findRes;
                                                     return _this.updateTransaction(transaction.model, transaction.findId, transaction.data, transaction.options);
                                                 });
                                                 break;
                                             case 'remove':
-                                                operation = this.findByIdTransaction(transaction.model, transaction.findId).then(function (findRes) {
+                                                operation = this.findByIdTransaction(transaction.model, transaction.findId, transaction.options).then(function (findRes) {
                                                     transaction.oldModel = findRes;
-                                                    return _this.removeTransaction(transaction.model, transaction.findId);
+                                                    return _this.removeTransaction(transaction.model, transaction.findId, transaction.options);
                                                 });
                                                 break;
                                         }
@@ -394,13 +409,47 @@ var Transaction = /** @class */ (function () {
                         final = [];
                         return [2 /*return*/, transactionsToRollback.reduce(function (promise, transaction, index) {
                                 return promise.then(function (result) {
+                                    var _a, _b;
                                     var operation = {};
                                     switch (transaction.rollbackType) {
                                         case 'insert':
-                                            operation = _this.insertTransaction(transaction.model, transaction.oldModel);
+                                            if ((_this.withDeleted || ((_a = transaction.options) === null || _a === void 0 ? void 0 : _a.withDeleted)) &&
+                                                transaction.model.findOneWithDeleted) {
+                                                operation = new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
+                                                    var data;
+                                                    var _this = this;
+                                                    return __generator(this, function (_a) {
+                                                        switch (_a.label) {
+                                                            case 0: return [4 /*yield*/, transaction.model
+                                                                    .findOneWithDeleted({
+                                                                    _id: transaction.findId,
+                                                                })
+                                                                    .lean()
+                                                                    .exec()];
+                                                            case 1:
+                                                                data = _a.sent();
+                                                                transaction.model.restore({ _id: transaction.findId }, function (err) {
+                                                                    if (err) {
+                                                                        return reject(_this.transactionError(err, data));
+                                                                    }
+                                                                    else {
+                                                                        return resolve(data);
+                                                                    }
+                                                                });
+                                                                return [2 /*return*/];
+                                                        }
+                                                    });
+                                                }); });
+                                            }
+                                            else {
+                                                operation = _this.insertTransaction(transaction.model, transaction.oldModel);
+                                            }
                                             break;
                                         case 'update':
-                                            operation = _this.updateTransaction(transaction.model, transaction.findId, transaction.oldModel);
+                                            operation = _this.updateTransaction(transaction.model, transaction.findId, transaction.oldModel, {
+                                                withDeleted: _this.withDeleted || ((_b = transaction === null || transaction === void 0 ? void 0 : transaction.options) === null || _b === void 0 ? void 0 : _b.withDeleted) ||
+                                                    false,
+                                            });
                                             break;
                                         case 'remove':
                                             operation = _this.removeTransaction(transaction.model, transaction.findId);
@@ -442,14 +491,19 @@ var Transaction = /** @class */ (function () {
             });
         });
     };
-    Transaction.prototype.findByIdTransaction = function (model, findId) {
+    Transaction.prototype.findByIdTransaction = function (model, findId, options) {
+        if (options === void 0) { options = { withDeleted: false }; }
         return __awaiter(this, void 0, void 0, function () {
+            var fn;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, model
-                            .findOne({ _id: findId })
-                            .lean()
-                            .exec()];
+                    case 0:
+                        fn = 'findOne';
+                        if ((this.withDeleted || options.withDeleted) &&
+                            model.findWithDeleted) {
+                            fn = 'findOneWithDeleted';
+                        }
+                        return [4 /*yield*/, model[fn]({ _id: findId }).lean().exec()];
                     case 1: return [2 /*return*/, _a.sent()];
                 }
             });
@@ -466,7 +520,7 @@ var Transaction = /** @class */ (function () {
                         }
                         return [4 /*yield*/, mongooseTransactions_collection_1.TransactionModel.create({
                                 operations: this.operations,
-                                rollbackIndex: this.rollbackIndex
+                                rollbackIndex: this.rollbackIndex,
                             })];
                     case 1:
                         transaction = _a.sent();
@@ -491,9 +545,18 @@ var Transaction = /** @class */ (function () {
     };
     Transaction.prototype.updateTransaction = function (model, id, data, options) {
         var _this = this;
-        if (options === void 0) { options = { new: false }; }
+        if (options === void 0) { options = {
+            new: false,
+            withDeleted: false,
+        }; }
         return new Promise(function (resolve, reject) {
-            model.findOneAndUpdate({ _id: id }, data, options, function (err, result) {
+            var fn = 'findOneAndUpdate';
+            var withDeleted = options.withDeleted, updateOptions = __rest(options, ["withDeleted"]);
+            if ((_this.withDeleted || options.withDeleted) &&
+                model.findOneAndUpdateWithDeleted) {
+                fn = 'findOneAndUpdateWithDeleted';
+            }
+            model[fn]({ _id: id }, data, updateOptions, function (err, result) {
                 if (err) {
                     return reject(_this.transactionError(err, { id: id, data: data }));
                 }
@@ -506,30 +569,60 @@ var Transaction = /** @class */ (function () {
             });
         });
     };
-    Transaction.prototype.removeTransaction = function (model, id) {
+    Transaction.prototype.removeTransaction = function (model, id, options) {
         var _this = this;
-        return new Promise(function (resolve, reject) {
-            model.findOneAndRemove({ _id: id }, function (err, data) {
-                if (err) {
-                    return reject(_this.transactionError(err, id));
-                }
-                else {
-                    if (data == null) {
-                        return reject(_this.transactionError(new Error('Entity not found'), id));
-                    }
-                    else {
-                        return resolve(data);
-                    }
+        if (options === void 0) { options = { withDeleted: false }; }
+        return new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
+            var data_1;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!((this.withDeleted || options.withDeleted) &&
+                            model.findOneWithDeleted)) return [3 /*break*/, 2];
+                        return [4 /*yield*/, model
+                                .findOneWithDeleted({ _id: id })
+                                .lean()
+                                .exec()];
+                    case 1:
+                        data_1 = _a.sent();
+                        if (!data_1) {
+                            return [2 /*return*/, reject(this.transactionError(new Error('Entity not found'), id))];
+                        }
+                        model.deleteById(id, function (err) {
+                            if (err) {
+                                return reject(_this.transactionError(err, id));
+                            }
+                            else {
+                                return resolve(data_1);
+                            }
+                        });
+                        return [2 /*return*/];
+                    case 2:
+                        model.findOneAndRemove({ _id: id }, function (err, data) {
+                            if (err) {
+                                return reject(_this.transactionError(err, id));
+                            }
+                            else {
+                                if (data == null) {
+                                    return reject(_this.transactionError(new Error('Entity not found'), id));
+                                }
+                                else {
+                                    return resolve(data);
+                                }
+                            }
+                        });
+                        return [2 /*return*/];
                 }
             });
-        });
+        }); });
     };
     Transaction.prototype.transactionError = function (error, data) {
         return {
             data: data,
             error: error,
             executedTransactions: this.rollbackIndex + 1,
-            remainingTransactions: this.operations.length - (this.rollbackIndex + 1)
+            remainingTransactions: this.operations.length - (this.rollbackIndex + 1),
         };
     };
     Transaction.prototype.updateOperationStatus = function (status, index) {
@@ -544,7 +637,7 @@ var Transaction = /** @class */ (function () {
                         return [4 /*yield*/, mongooseTransactions_collection_1.TransactionModel.findByIdAndUpdate(this.transactionId, {
                                 operations: this.operations,
                                 rollbackIndex: this.rollbackIndex,
-                                status: status
+                                status: status,
                             }, { new: true })];
                     case 1: return [2 /*return*/, _a.sent()];
                     case 2: return [2 /*return*/];

@@ -38,17 +38,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var main_1 = require("../src/main");
 var mongoose = require("mongoose");
+var mongoose_delete_1 = require("mongoose-delete");
 var options = {
     useCreateIndex: true,
     useFindAndModify: false,
     useNewUrlParser: true,
-    useUnifiedTopology: true
+    useUnifiedTopology: true,
 };
 // @ts-ignore
 mongoose.Promise = global.Promise;
-mongoose.connection
-    // .once('open', () => { })
-    .on('error', function (err) { return console.warn('Warning', err); });
+// mongoose.connection
+// .once('open', () => { })
+// .on('error', (err) => console.warn('Warning', err))
 var personSchema = new mongoose.Schema({
     age: Number,
     contact: {
@@ -57,14 +58,15 @@ var personSchema = new mongoose.Schema({
             index: true,
             sparse: true,
             type: String,
-            unique: true
-        }
+            unique: true,
+        },
     },
-    name: String
+    name: String,
 });
+personSchema.plugin(mongoose_delete_1.default, { overrideMethods: 'all' });
 var carSchema = new mongoose.Schema({
     age: Number,
-    name: String
+    name: String,
 });
 var Person = mongoose.model('Person', personSchema);
 var Car = mongoose.model('Car', carSchema);
@@ -90,7 +92,7 @@ describe('Transaction run ', function () {
     beforeAll(function () { return __awaiter(void 0, void 0, void 0, function () {
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, mongoose.connect("mongodb://localhost/mongoose-transactions", options)];
+                case 0: return [4 /*yield*/, mongoose.connect("mongodb://127.0.0.1:27017/mongoose-transactions", options)];
                 case 1:
                     _a.sent();
                     return [2 /*return*/];
@@ -119,7 +121,7 @@ describe('Transaction run ', function () {
                     person = 'Person';
                     jonathanObject = {
                         age: 18,
-                        name: 'Jonathan'
+                        name: 'Jonathan',
                     };
                     transaction.insert(person, jonathanObject);
                     return [4 /*yield*/, transaction.run().catch(console.error)];
@@ -145,12 +147,12 @@ describe('Transaction run ', function () {
                     jonathanObject = {
                         age: 18,
                         email: 'myemail@blabla.com',
-                        name: 'Jonathan'
+                        name: 'Jonathan',
                     };
                     tonyObject = {
                         age: 29,
                         email: 'myemail@blabla.com',
-                        name: 'tony'
+                        name: 'tony',
                     };
                     transaction.insert(person, jonathanObject);
                     transaction.insert(person, tonyObject);
@@ -179,11 +181,11 @@ describe('Transaction run ', function () {
                     person = 'Person';
                     tonyObject = {
                         age: 28,
-                        name: 'Tony'
+                        name: 'Tony',
                     };
                     nicolaObject = {
                         age: 32,
-                        name: 'Nicola'
+                        name: 'Nicola',
                     };
                     personId = transaction.insert(person, tonyObject);
                     transaction.update(person, personId, nicolaObject);
@@ -209,11 +211,11 @@ describe('Transaction run ', function () {
                     person = 'Person';
                     bobObject = {
                         age: 45,
-                        name: 'Bob'
+                        name: 'Bob',
                     };
                     aliceObject = {
                         age: 23,
-                        name: 'Alice'
+                        name: 'Alice',
                     };
                     personId = transaction.insert(person, bobObject);
                     transaction.update(person, personId, aliceObject);
@@ -235,6 +237,37 @@ describe('Transaction run ', function () {
             }
         });
     }); });
+    test('remove (soft-delete)', function () { return __awaiter(void 0, void 0, void 0, function () {
+        var person, bobObject, personId, final, bob, bobWithDeleted;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    person = 'Person';
+                    bobObject = {
+                        age: 45,
+                        name: 'Bob',
+                    };
+                    personId = transaction.insert(person, bobObject);
+                    transaction.remove(person, personId, { withDeleted: true });
+                    return [4 /*yield*/, transaction.run()];
+                case 1:
+                    final = _a.sent();
+                    return [4 /*yield*/, Person.findOne(bobObject).exec()];
+                case 2:
+                    bob = _a.sent();
+                    return [4 /*yield*/, Person
+                            .findOneWithDeleted(bobObject)
+                            .exec()];
+                case 3:
+                    bobWithDeleted = _a.sent();
+                    expect(final).toBeInstanceOf(Array);
+                    expect(final.length).toBe(2);
+                    expect(bob).toBeNull();
+                    expect(bobWithDeleted).not.toBeNull();
+                    return [2 /*return*/];
+            }
+        });
+    }); });
     test('Fail remove', function () { return __awaiter(void 0, void 0, void 0, function () {
         var person, bobObject, aliceObject, personId, failObjectId, final, error_2;
         return __generator(this, function (_a) {
@@ -243,11 +276,11 @@ describe('Transaction run ', function () {
                     person = 'Person';
                     bobObject = {
                         age: 45,
-                        name: 'Bob'
+                        name: 'Bob',
                     };
                     aliceObject = {
                         age: 23,
-                        name: 'Alice'
+                        name: 'Alice',
                     };
                     personId = transaction.insert(person, bobObject);
                     transaction.update(person, personId, aliceObject);
@@ -280,11 +313,11 @@ describe('Transaction run ', function () {
                     person = 'Person';
                     bobObject = {
                         age: 45,
-                        name: 'Bob'
+                        name: 'Bob',
                     };
                     aliceObject = {
                         age: 23,
-                        name: 'Alice'
+                        name: 'Alice',
                     };
                     personId = transaction.insert(person, bobObject);
                     transaction.update(person, personId, aliceObject);
@@ -330,11 +363,11 @@ describe('Transaction run ', function () {
                     person = 'Person';
                     bobObject = {
                         age: 45,
-                        name: 'Bob'
+                        name: 'Bob',
                     };
                     aliceObject = {
                         age: 23,
-                        name: 'Alice'
+                        name: 'Alice',
                     };
                     bobId = transaction.insert(person, bobObject);
                     return [4 /*yield*/, transaction.run()];
@@ -407,19 +440,19 @@ describe('Transaction run ', function () {
                     person = 'Person';
                     bobObject = {
                         age: 45,
-                        name: 'Bob'
+                        name: 'Bob',
                     };
                     aliceObject = {
                         age: 23,
-                        name: 'Alice'
+                        name: 'Alice',
                     };
                     mariaObject = {
                         age: 43,
-                        name: 'Maria'
+                        name: 'Maria',
                     };
                     giuseppeObject = {
                         age: 33,
-                        name: 'Giuseppe'
+                        name: 'Giuseppe',
                     };
                     bobId = transaction.insert(person, bobObject);
                     return [4 /*yield*/, transaction.run()];
@@ -475,9 +508,7 @@ describe('Transaction run ', function () {
                     expect(rollbacks[3].age).toEqual(bobObject.age);
                     expect(rollbacks[4].name).toEqual(aliceObject.name);
                     expect(rollbacks[4].age).toEqual(aliceObject.age);
-                    return [4 /*yield*/, Person.find({})
-                            .lean()
-                            .exec()];
+                    return [4 /*yield*/, Person.find({}).lean().exec()];
                 case 7:
                     results = _a.sent();
                     expect(results.length).toBe(1);

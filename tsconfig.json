@@ -6,15 +6,9 @@
         "sourceRoot": "src",
         "outDir": "dist",
         "watch": true,
-        "types": [
-            "node",
-            "jest",
-            "core-js"
-        ],
+        "types": ["node", "jest", "core-js"],
         "sourceMap": true,
-        "lib": [
-            "es2015"
-        ]
+        "lib": ["es2015"]
     },
     "compileOnSave": true
 }

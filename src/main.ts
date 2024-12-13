@@ -1,8 +1,8 @@
 import * as mongoose from 'mongoose'
 import {
-    TransactionModel,
-    Operation,
-    Status
+  Operation,
+  Status,
+  TransactionModel,
 } from './mongooseTransactions.collection'
 
 /** Class representing a transaction. */
@@ -12,6 +12,9 @@ export default class Transaction {
 
     /** Boolean value for enable or disable saving transaction on db */
     private useDb: boolean = false
+
+    /** Boolean value for whether mongoose-delete models to be used */
+    private withDeleted: boolean = false
 
     /** The id of the current transaction document on database */
     private transactionId = ''
@@ -25,9 +28,10 @@ export default class Transaction {
      * @param transactionId - The id of the transaction to load, load the transaction
      *                        from db if you set useDb true (default "")
      */
-    constructor(useDb = false) {
+    constructor(useDb = false, withDeleted = false) {
         this.useDb = useDb
         this.transactionId = ''
+        this.withDeleted = withDeleted
     }
 
     /**
@@ -37,14 +41,14 @@ export default class Transaction {
      */
     public async loadDbTransaction(transactionId: string) {
         const loadedTransaction = await TransactionModel.findOne({
-            _id: transactionId
+            _id: transactionId,
         })
             .lean()
             .exec()
 
         if (!loadedTransaction) return null
 
-        loadedTransaction.operations.forEach(operation => {
+        loadedTransaction.operations.forEach((operation) => {
             operation.model = mongoose.model(operation.modelName)
         })
         this.operations = loadedTransaction.operations
@@ -111,7 +115,7 @@ export default class Transaction {
             { _id: this.transactionId },
             {
                 operations: this.operations,
-                rollbackIndex: this.rollbackIndex
+                rollbackIndex: this.rollbackIndex,
             }
         )
 
@@ -156,7 +160,7 @@ export default class Transaction {
             options,
             rollbackType: 'remove',
             status: Status.pending,
-            type: 'insert'
+            type: 'insert',
         }
 
         this.operations.push(operation)
@@ -182,7 +186,7 @@ export default class Transaction {
             options,
             rollbackType: 'update',
             status: Status.pending,
-            type: 'update'
+            type: 'update',
         }
 
         this.operations.push(operation)
@@ -207,7 +211,7 @@ export default class Transaction {
             options,
             rollbackType: 'insert',
             status: Status.pending,
-            type: 'remove'
+            type: 'remove',
         }
 
         this.operations.push(operation)
@@ -232,7 +236,7 @@ export default class Transaction {
         const final = []
 
         return this.operations.reduce((promise, transaction, index) => {
-            return promise.then(async result => {
+            return promise.then(async (result) => {
                 let operation: any = {}
 
                 switch (transaction.type) {
@@ -245,8 +249,9 @@ export default class Transaction {
                     case 'update':
                         operation = this.findByIdTransaction(
                             transaction.model,
-                            transaction.findId
-                        ).then(findRes => {
+                            transaction.findId,
+                            transaction.options
+                        ).then((findRes) => {
                             transaction.oldModel = findRes
                             return this.updateTransaction(
                                 transaction.model,
@@ -259,19 +264,21 @@ export default class Transaction {
                     case 'remove':
                         operation = this.findByIdTransaction(
                             transaction.model,
-                            transaction.findId
-                        ).then(findRes => {
+                            transaction.findId,
+                            transaction.options
+                        ).then((findRes) => {
                             transaction.oldModel = findRes
                             return this.removeTransaction(
                                 transaction.model,
-                                transaction.findId
+                                transaction.findId,
+                                transaction.options
                             )
                         })
                         break
                 }
 
                 return operation
-                    .then(async query => {
+                    .then(async (query) => {
                         this.rollbackIndex = index
                         this.updateOperationStatus(Status.success, index)
 
@@ -282,7 +289,7 @@ export default class Transaction {
                         final.push(query)
                         return final
                     })
-                    .catch(async err => {
+                    .catch(async (err) => {
                         this.updateOperationStatus(Status.error, index)
 
                         await this.updateDbTransaction(Status.error)
@@ -323,21 +330,54 @@ export default class Transaction {
         const final = []
 
         return transactionsToRollback.reduce((promise, transaction, index) => {
-            return promise.then(result => {
+            return promise.then((result) => {
                 let operation: any = {}
 
                 switch (transaction.rollbackType) {
                     case 'insert':
-                        operation = this.insertTransaction(
-                            transaction.model,
-                            transaction.oldModel
-                        )
+                        if (
+                            (this.withDeleted ||
+                                transaction.options?.withDeleted) &&
+                            transaction.model.findOneWithDeleted
+                        ) {
+                            operation = new Promise(async (resolve, reject) => {
+                                const data = await transaction.model
+                                    .findOneWithDeleted({
+                                        _id: transaction.findId,
+                                    })
+                                    .lean()
+                                    .exec()
+                                transaction.model.restore(
+                                    { _id: transaction.findId },
+                                    (err) => {
+                                        if (err) {
+                                            return reject(
+                                                this.transactionError(err, data)
+                                            )
+                                        } else {
+                                            return resolve(data)
+                                        }
+                                    }
+                                )
+                            })
+                        } else {
+                            operation = this.insertTransaction(
+                                transaction.model,
+                                transaction.oldModel
+                            )
+                        }
                         break
                     case 'update':
                         operation = this.updateTransaction(
                             transaction.model,
                             transaction.findId,
-                            transaction.oldModel
+                            transaction.oldModel,
+                            {
+                                withDeleted:
+                                    this.withDeleted ||
+                                    transaction?.options?.withDeleted ||
+                                    false,
+                            }
                         )
                         break
                     case 'remove':
@@ -349,7 +389,7 @@ export default class Transaction {
                 }
 
                 return operation
-                    .then(async query => {
+                    .then(async (query) => {
                         this.rollbackIndex--
 
                         this.updateOperationStatus(Status.rollback, index)
@@ -360,7 +400,7 @@ export default class Transaction {
                         final.push(query)
                         return final
                     })
-                    .catch(async err => {
+                    .catch(async (err) => {
                         this.updateOperationStatus(Status.errorRollback, index)
                         await this.updateDbTransaction(Status.errorRollback)
 
@@ -370,11 +410,19 @@ export default class Transaction {
         }, Promise.resolve([]))
     }
 
-    private async findByIdTransaction(model, findId) {
-        return await model
-            .findOne({ _id: findId })
-            .lean()
-            .exec()
+    private async findByIdTransaction(
+        model,
+        findId,
+        options = { withDeleted: false }
+    ) {
+        let fn = 'findOne'
+        if (
+            (this.withDeleted || options.withDeleted) &&
+            model.findWithDeleted
+        ) {
+            fn = 'findOneWithDeleted'
+        }
+        return await model[fn]({ _id: findId }).lean().exec()
     }
 
     private async createTransaction() {
@@ -384,7 +432,7 @@ export default class Transaction {
 
         const transaction = await TransactionModel.create({
             operations: this.operations,
-            rollbackIndex: this.rollbackIndex
+            rollbackIndex: this.rollbackIndex,
         })
 
         this.transactionId = transaction._id
@@ -404,33 +452,70 @@ export default class Transaction {
         })
     }
 
-    private updateTransaction(model, id, data, options = { new: false }) {
+    private updateTransaction(
+        model,
+        id,
+        data,
+        options: { new?: boolean; withDeleted?: boolean } = {
+            new: false,
+            withDeleted: false,
+        }
+    ) {
         return new Promise((resolve, reject) => {
-            model.findOneAndUpdate(
-                { _id: id },
-                data,
-                options,
-                (err, result) => {
-                    if (err) {
-                        return reject(this.transactionError(err, { id, data }))
-                    } else {
-                        if (!result) {
-                            return reject(
-                                this.transactionError(
-                                    new Error('Entity not found'),
-                                    { id, data }
-                                )
+            let fn = 'findOneAndUpdate'
+            const { withDeleted, ...updateOptions } = options
+            if (
+                (this.withDeleted || options.withDeleted) &&
+                model.findOneAndUpdateWithDeleted
+            ) {
+                fn = 'findOneAndUpdateWithDeleted'
+            }
+            model[fn]({ _id: id }, data, updateOptions, (err, result) => {
+                if (err) {
+                    return reject(this.transactionError(err, { id, data }))
+                } else {
+                    if (!result) {
+                        return reject(
+                            this.transactionError(
+                                new Error('Entity not found'),
+                                { id, data }
                             )
-                        }
-                        return resolve(result)
+                        )
                     }
+                    return resolve(result)
                 }
-            )
+            })
         })
     }
 
-    private removeTransaction(model, id) {
-        return new Promise((resolve, reject) => {
+    private removeTransaction(
+        model,
+        id,
+        options: { withDeleted?: boolean } = { withDeleted: false }
+    ) {
+        return new Promise(async (resolve, reject) => {
+            if (
+                (this.withDeleted || options.withDeleted) &&
+                model.findOneWithDeleted
+            ) {
+                const data = await model
+                    .findOneWithDeleted({ _id: id })
+                    .lean()
+                    .exec()
+                if (!data) {
+                    return reject(
+                        this.transactionError(new Error('Entity not found'), id)
+                    )
+                }
+                model.deleteById(id, (err) => {
+                    if (err) {
+                        return reject(this.transactionError(err, id))
+                    } else {
+                        return resolve(data)
+                    }
+                })
+                return
+            }
             model.findOneAndRemove({ _id: id }, (err, data) => {
                 if (err) {
                     return reject(this.transactionError(err, id))
@@ -456,7 +541,7 @@ export default class Transaction {
             error,
             executedTransactions: this.rollbackIndex + 1,
             remainingTransactions:
-                this.operations.length - (this.rollbackIndex + 1)
+                this.operations.length - (this.rollbackIndex + 1),
         }
     }
 
@@ -471,7 +556,7 @@ export default class Transaction {
                 {
                     operations: this.operations,
                     rollbackIndex: this.rollbackIndex,
-                    status
+                    status,
                 },
                 { new: true }
             )

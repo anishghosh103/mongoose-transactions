@@ -1,20 +1,21 @@
 import Transaction from '../src/main'
 
 import * as mongoose from 'mongoose'
+import MongooseDelete = require('mongoose-delete')
 
 const options: any = {
     useCreateIndex: true,
     useFindAndModify: false,
     useNewUrlParser: true,
-    useUnifiedTopology: true
+    useUnifiedTopology: true,
 }
 
 // @ts-ignore
 mongoose.Promise = global.Promise
 
 mongoose.connection
-    // .once('open', () => { })
-    .on('error', err => console.warn('Warning', err))
+    .once('open', () => {})
+    .on('error', (err) => console.warn('Warning', err))
 
 const personSchema = new mongoose.Schema({
     age: Number,
@@ -24,15 +25,16 @@ const personSchema = new mongoose.Schema({
             index: true,
             sparse: true,
             type: String,
-            unique: true
-        }
+            unique: true,
+        },
     },
-    name: String
+    name: String,
 })
+personSchema.plugin(MongooseDelete, { overrideMethods: 'all' })
 
 const carSchema = new mongoose.Schema({
     age: Number,
-    name: String
+    name: String,
 })
 
 const Person = mongoose.model('Person', personSchema)
@@ -52,7 +54,7 @@ describe('Transaction run ', () => {
 
     beforeAll(async () => {
         await mongoose.connect(
-            `mongodb://localhost/mongoose-transactions`,
+            `mongodb://127.0.0.1:27017/mongoose-transactions`,
             options
         )
     })
@@ -71,7 +73,7 @@ describe('Transaction run ', () => {
 
         const jonathanObject: any = {
             age: 18,
-            name: 'Jonathan'
+            name: 'Jonathan',
         }
 
         transaction.insert(person, jonathanObject)
@@ -95,13 +97,13 @@ describe('Transaction run ', () => {
         const jonathanObject: any = {
             age: 18,
             email: 'myemail@blabla.com',
-            name: 'Jonathan'
+            name: 'Jonathan',
         }
 
         const tonyObject: any = {
             age: 29,
             email: 'myemail@blabla.com',
-            name: 'tony'
+            name: 'tony',
         }
 
         transaction.insert(person, jonathanObject)
@@ -124,12 +126,12 @@ describe('Transaction run ', () => {
 
         const tonyObject: any = {
             age: 28,
-            name: 'Tony'
+            name: 'Tony',
         }
 
         const nicolaObject: any = {
             age: 32,
-            name: 'Nicola'
+            name: 'Nicola',
         }
 
         const personId = transaction.insert(person, tonyObject)
@@ -154,12 +156,12 @@ describe('Transaction run ', () => {
 
         const bobObject: any = {
             age: 45,
-            name: 'Bob'
+            name: 'Bob',
         }
 
         const aliceObject: any = {
             age: 23,
-            name: 'Alice'
+            name: 'Alice',
         }
 
         const personId = transaction.insert(person, bobObject)
@@ -183,17 +185,44 @@ describe('Transaction run ', () => {
         expect(bob).toBeNull()
     })
 
+    test('remove (soft-delete)', async () => {
+        const person: string = 'Person'
+
+        const bobObject: any = {
+            age: 45,
+            name: 'Bob',
+        }
+
+        const personId = transaction.insert(person, bobObject)
+
+        transaction.remove(person, personId, { withDeleted: true })
+
+        const final = await transaction.run()
+
+        const bob: any = await Person.findOne(bobObject).exec()
+        const bobWithDeleted: any = await (Person as any)
+            .findOneWithDeleted(bobObject)
+            .exec()
+
+        expect(final).toBeInstanceOf(Array)
+
+        expect(final.length).toBe(2)
+
+        expect(bob).toBeNull()
+        expect(bobWithDeleted).not.toBeNull()
+    })
+
     test('Fail remove', async () => {
         const person: string = 'Person'
 
         const bobObject: any = {
             age: 45,
-            name: 'Bob'
+            name: 'Bob',
         }
 
         const aliceObject: any = {
             age: 23,
-            name: 'Alice'
+            name: 'Alice',
         }
 
         const personId = transaction.insert(person, bobObject)
@@ -224,12 +253,12 @@ describe('Transaction run ', () => {
 
         const bobObject: any = {
             age: 45,
-            name: 'Bob'
+            name: 'Bob',
         }
 
         const aliceObject: any = {
             age: 23,
-            name: 'Alice'
+            name: 'Alice',
         }
 
         const personId = transaction.insert(person, bobObject)
@@ -271,12 +300,12 @@ describe('Transaction run ', () => {
 
         const bobObject: any = {
             age: 45,
-            name: 'Bob'
+            name: 'Bob',
         }
 
         const aliceObject: any = {
             age: 23,
-            name: 'Alice'
+            name: 'Alice',
         }
 
         const bobId = transaction.insert(person, bobObject)
@@ -345,22 +374,22 @@ describe('Transaction run ', () => {
 
         const bobObject: any = {
             age: 45,
-            name: 'Bob'
+            name: 'Bob',
         }
 
         const aliceObject: any = {
             age: 23,
-            name: 'Alice'
+            name: 'Alice',
         }
 
         const mariaObject: any = {
             age: 43,
-            name: 'Maria'
+            name: 'Maria',
         }
 
         const giuseppeObject: any = {
             age: 33,
-            name: 'Giuseppe'
+            name: 'Giuseppe',
         }
 
         const bobId = transaction.insert(person, bobObject)
@@ -423,9 +452,7 @@ describe('Transaction run ', () => {
             expect(rollbacks[4].name).toEqual(aliceObject.name)
             expect(rollbacks[4].age).toEqual(aliceObject.age)
 
-            const results: any = await Person.find({})
-                .lean()
-                .exec()
+            const results: any = await Person.find({}).lean().exec()
 
             expect(results.length).toBe(1)
             expect(results[0].name).toEqual(bobObject.name)

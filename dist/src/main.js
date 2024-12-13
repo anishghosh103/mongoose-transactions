@@ -162,14 +162,19 @@ var Transaction = /** @class */ (function () {
     Transaction.prototype.getOperations = function (transactionId) {
         if (transactionId === void 0) { transactionId = null; }
         return __awaiter(this, void 0, void 0, function () {
+            var transaction;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         if (!transactionId) return [3 /*break*/, 2];
-                        return [4 /*yield*/, mongooseTransactions_collection_1.TransactionModel.findOne({ _id: transactionId })
+                        return [4 /*yield*/, mongooseTransactions_collection_1.TransactionModel.findOne({
+                                _id: transactionId,
+                            })
                                 .lean()
                                 .exec()];
-                    case 1: return [2 /*return*/, _a.sent()];
+                    case 1:
+                        transaction = _a.sent();
+                        return [2 /*return*/, transaction];
                     case 2: return [2 /*return*/, this.operations];
                 }
             });
@@ -236,7 +241,7 @@ var Transaction = /** @class */ (function () {
         }
         var operation = {
             data: data,
-            findId: data._id,
+            findObj: { _id: data._id },
             model: model,
             modelName: modelName,
             oldModel: null,
@@ -259,7 +264,30 @@ var Transaction = /** @class */ (function () {
         var model = mongoose.model(modelName);
         var operation = {
             data: data,
-            findId: findId,
+            findObj: { _id: findId },
+            model: model,
+            modelName: modelName,
+            oldModel: null,
+            options: options,
+            rollbackType: 'update',
+            status: "Pending" /* pending */,
+            type: 'update',
+        };
+        this.operations.push(operation);
+        return operation;
+    };
+    /**
+     * Create the findOneAndUpdate transaction and rollback states.
+     * @param modelName - The string containing the mongoose model name.
+     * @param findObj - The filter to get the object to update.
+     * @param dataObj - The object containing data to update into mongoose model.
+     */
+    Transaction.prototype.updateOne = function (modelName, findObj, data, options) {
+        if (options === void 0) { options = {}; }
+        var model = mongoose.model(modelName);
+        var operation = {
+            data: data,
+            findObj: findObj,
             model: model,
             modelName: modelName,
             oldModel: null,
@@ -274,14 +302,36 @@ var Transaction = /** @class */ (function () {
     /**
      * Create the remove transaction and rollback states.
      * @param modelName - The string containing the mongoose model name.
-     * @param findObj - The object containing data to find mongoose collection.
+     * @param findId - The id of the data to find.
      */
     Transaction.prototype.remove = function (modelName, findId, options) {
         if (options === void 0) { options = {}; }
         var model = mongoose.model(modelName);
         var operation = {
             data: null,
-            findId: findId,
+            findObj: { _id: findId },
+            model: model,
+            modelName: modelName,
+            oldModel: null,
+            options: options,
+            rollbackType: 'insert',
+            status: "Pending" /* pending */,
+            type: 'remove',
+        };
+        this.operations.push(operation);
+        return operation;
+    };
+    /**
+     * Create the remove transaction and rollback states.
+     * @param modelName - The string containing the mongoose model name.
+     * @param findObj - The filter to get the data to find.
+     */
+    Transaction.prototype.removeOne = function (modelName, findObj, options) {
+        if (options === void 0) { options = {}; }
+        var model = mongoose.model(modelName);
+        var operation = {
+            data: null,
+            findObj: findObj,
             model: model,
             modelName: modelName,
             oldModel: null,
@@ -327,15 +377,15 @@ var Transaction = /** @class */ (function () {
                                                 operation = this.insertTransaction(transaction.model, transaction.data);
                                                 break;
                                             case 'update':
-                                                operation = this.findByIdTransaction(transaction.model, transaction.findId, transaction.options).then(function (findRes) {
+                                                operation = this.findOneTransaction(transaction.model, transaction.findObj, transaction.options).then(function (findRes) {
                                                     transaction.oldModel = findRes;
-                                                    return _this.updateTransaction(transaction.model, transaction.findId, transaction.data, transaction.options);
+                                                    return _this.updateTransaction(transaction.model, transaction.findObj, transaction.data, transaction.options);
                                                 });
                                                 break;
                                             case 'remove':
-                                                operation = this.findByIdTransaction(transaction.model, transaction.findId, transaction.options).then(function (findRes) {
+                                                operation = this.findOneTransaction(transaction.model, transaction.findObj, transaction.options).then(function (findRes) {
                                                     transaction.oldModel = findRes;
-                                                    return _this.removeTransaction(transaction.model, transaction.findId, transaction.options);
+                                                    return _this.removeTransaction(transaction.model, transaction.findObj, transaction.options);
                                                 });
                                                 break;
                                         }
@@ -421,14 +471,12 @@ var Transaction = /** @class */ (function () {
                                                     return __generator(this, function (_a) {
                                                         switch (_a.label) {
                                                             case 0: return [4 /*yield*/, transaction.model
-                                                                    .findOneWithDeleted({
-                                                                    _id: transaction.findId,
-                                                                })
+                                                                    .findOneWithDeleted(transaction.findObj)
                                                                     .lean()
                                                                     .exec()];
                                                             case 1:
                                                                 data = _a.sent();
-                                                                transaction.model.restore({ _id: transaction.findId }, function (err) {
+                                                                transaction.model.restore(transaction.findObj, function (err) {
                                                                     if (err) {
                                                                         return reject(_this.transactionError(err, data));
                                                                     }
@@ -446,13 +494,13 @@ var Transaction = /** @class */ (function () {
                                             }
                                             break;
                                         case 'update':
-                                            operation = _this.updateTransaction(transaction.model, transaction.findId, transaction.oldModel, {
+                                            operation = _this.updateTransaction(transaction.model, transaction.findObj, transaction.oldModel, {
                                                 withDeleted: _this.withDeleted || ((_b = transaction === null || transaction === void 0 ? void 0 : transaction.options) === null || _b === void 0 ? void 0 : _b.withDeleted) ||
                                                     false,
                                             });
                                             break;
                                         case 'remove':
-                                            operation = _this.removeTransaction(transaction.model, transaction.findId);
+                                            operation = _this.removeTransaction(transaction.model, transaction.findObj);
                                             break;
                                     }
                                     return operation
@@ -491,7 +539,7 @@ var Transaction = /** @class */ (function () {
             });
         });
     };
-    Transaction.prototype.findByIdTransaction = function (model, findId, options) {
+    Transaction.prototype.findOneTransaction = function (model, findObj, options) {
         if (options === void 0) { options = { withDeleted: false }; }
         return __awaiter(this, void 0, void 0, function () {
             var fn;
@@ -503,7 +551,7 @@ var Transaction = /** @class */ (function () {
                             model.findWithDeleted) {
                             fn = 'findOneWithDeleted';
                         }
-                        return [4 /*yield*/, model[fn]({ _id: findId }).lean().exec()];
+                        return [4 /*yield*/, model[fn](findObj).lean().exec()];
                     case 1: return [2 /*return*/, _a.sent()];
                 }
             });
@@ -518,13 +566,15 @@ var Transaction = /** @class */ (function () {
                         if (!this.useDb) {
                             throw new Error('You must set useDB true in the constructor');
                         }
-                        return [4 /*yield*/, mongooseTransactions_collection_1.TransactionModel.create({
-                                operations: this.operations,
-                                rollbackIndex: this.rollbackIndex,
-                            })];
+                        return [4 /*yield*/, mongooseTransactions_collection_1.TransactionModel.create([
+                                {
+                                    operations: this.operations,
+                                    rollbackIndex: this.rollbackIndex,
+                                },
+                            ], { checkKeys: false })];
                     case 1:
                         transaction = _a.sent();
-                        this.transactionId = transaction._id;
+                        this.transactionId = transaction[0]._id;
                         return [2 /*return*/, transaction];
                 }
             });
@@ -543,7 +593,7 @@ var Transaction = /** @class */ (function () {
             });
         });
     };
-    Transaction.prototype.updateTransaction = function (model, id, data, options) {
+    Transaction.prototype.updateTransaction = function (model, findObj, data, options) {
         var _this = this;
         if (options === void 0) { options = {
             new: false,
@@ -556,20 +606,20 @@ var Transaction = /** @class */ (function () {
                 model.findOneAndUpdateWithDeleted) {
                 fn = 'findOneAndUpdateWithDeleted';
             }
-            model[fn]({ _id: id }, data, updateOptions, function (err, result) {
+            model[fn](findObj, data, updateOptions, function (err, result) {
                 if (err) {
-                    return reject(_this.transactionError(err, { id: id, data: data }));
+                    return reject(_this.transactionError(err, { findObj: findObj, data: data }));
                 }
                 else {
                     if (!result) {
-                        return reject(_this.transactionError(new Error('Entity not found'), { id: id, data: data }));
+                        return reject(_this.transactionError(new Error('Entity not found'), { findObj: findObj, data: data }));
                     }
                     return resolve(result);
                 }
             });
         });
     };
-    Transaction.prototype.removeTransaction = function (model, id, options) {
+    Transaction.prototype.removeTransaction = function (model, findObj, options) {
         var _this = this;
         if (options === void 0) { options = { withDeleted: false }; }
         return new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
@@ -581,17 +631,17 @@ var Transaction = /** @class */ (function () {
                         if (!((this.withDeleted || options.withDeleted) &&
                             model.findOneWithDeleted)) return [3 /*break*/, 2];
                         return [4 /*yield*/, model
-                                .findOneWithDeleted({ _id: id })
+                                .findOneWithDeleted(findObj)
                                 .lean()
                                 .exec()];
                     case 1:
                         data_1 = _a.sent();
                         if (!data_1) {
-                            return [2 /*return*/, reject(this.transactionError(new Error('Entity not found'), id))];
+                            return [2 /*return*/, reject(this.transactionError(new Error('Entity not found'), findObj))];
                         }
-                        model.deleteById(id, function (err) {
+                        model.delete(findObj, function (err) {
                             if (err) {
-                                return reject(_this.transactionError(err, id));
+                                return reject(_this.transactionError(err, findObj));
                             }
                             else {
                                 return resolve(data_1);
@@ -599,13 +649,13 @@ var Transaction = /** @class */ (function () {
                         });
                         return [2 /*return*/];
                     case 2:
-                        model.findOneAndRemove({ _id: id }, function (err, data) {
+                        model.findOneAndRemove(findObj, function (err, data) {
                             if (err) {
-                                return reject(_this.transactionError(err, id));
+                                return reject(_this.transactionError(err, findObj));
                             }
                             else {
                                 if (data == null) {
-                                    return reject(_this.transactionError(new Error('Entity not found'), id));
+                                    return reject(_this.transactionError(new Error('Entity not found'), findObj));
                                 }
                                 else {
                                     return resolve(data);

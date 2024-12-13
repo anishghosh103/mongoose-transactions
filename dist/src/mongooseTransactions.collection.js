@@ -6,8 +6,8 @@ exports.TransactionSchema = new mongoose.Schema({
     rollbackIndex: Number,
     status: {
         default: 'pending',
-        type: String
-    }
+        type: String,
+    },
 });
 exports.TransactionModel = mongoose.model('MongooseTransactions', exports.TransactionSchema);
 //# sourceMappingURL=mongooseTransactions.collection.js.map

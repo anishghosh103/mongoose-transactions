@@ -14,7 +14,7 @@ const options: any = {
 mongoose.Promise = global.Promise
 
 mongoose.connection
-    .once('open', () => {})
+    // .once('open', () => {})
     .on('error', (err) => console.warn('Warning', err))
 
 const personSchema = new mongoose.Schema({
@@ -185,6 +185,40 @@ describe('Transaction run ', () => {
         expect(bob).toBeNull()
     })
 
+    test('removeOne', async () => {
+        const person: string = 'Person'
+
+        const bobObject: any = {
+            age: 45,
+            name: 'Bob',
+        }
+
+        const aliceObject: any = {
+            age: 23,
+            name: 'Alice',
+        }
+
+        const personId = transaction.insert(person, bobObject)
+
+        transaction.update(person, personId, { $set: aliceObject })
+
+        transaction.removeOne(person, { name: 'Alice' })
+
+        const final = await transaction.run()
+
+        const bob: any = await Person.findOne(bobObject).exec()
+
+        const alice: any = await Person.findOne(aliceObject).exec()
+
+        expect(final).toBeInstanceOf(Array)
+
+        expect(final.length).toBe(3)
+
+        expect(alice).toBeNull()
+
+        expect(bob).toBeNull()
+    })
+
     test('remove (soft-delete)', async () => {
         const person: string = 'Person'
 
@@ -244,7 +278,7 @@ describe('Transaction run ', () => {
 
             expect(error.error.message).toBe('Entity not found')
 
-            expect(error.data).toEqual(failObjectId)
+            expect(error.data).toEqual({ _id: failObjectId })
         }
     })
 
@@ -280,7 +314,7 @@ describe('Transaction run ', () => {
 
             expect(error.error.message).toBe('Entity not found')
 
-            expect(error.data).toEqual(failObjectId)
+            expect(error.data).toEqual({ _id: failObjectId })
 
             const rollbackObj = await transaction
                 .rollback()
@@ -347,7 +381,7 @@ describe('Transaction run ', () => {
 
             expect(error.error.message).toBe('Entity not found')
 
-            expect(error.data).toEqual(failObjectId)
+            expect(error.data).toEqual({ _id: failObjectId })
 
             const rollbacks = await transaction.rollback().catch(console.error)
 
@@ -436,7 +470,7 @@ describe('Transaction run ', () => {
 
             expect(error.error.message).toBe('Entity not found')
 
-            expect(error.data.id).toEqual(aliceId)
+            expect(error.data.findObj._id).toEqual(aliceId)
             expect(error.data.data.name).toEqual('Error')
 
             const rollbacks = await transaction.rollback().catch(console.error)

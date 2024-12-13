@@ -47,11 +47,11 @@ describe('Transaction using DB ', function () {
         useNewUrlParser: true,
         useUnifiedTopology: true,
     };
-    // mongoose.connection
-    // .once('open', () => {
-    //     console.log('Mongo connected!')
-    // })
-    // .on('error', err => console.warn('Warning', err))
+    mongoose.connection
+        .once('open', function () {
+        console.log('Mongo connected!');
+    })
+        .on('error', function (err) { return console.warn('Warning', err); });
     var transaction;
     var personSchema = new mongoose.Schema({
         age: Number,
@@ -241,7 +241,7 @@ describe('Transaction using DB ', function () {
                 case 4:
                     err_1 = _a.sent();
                     expect(err_1.error.message).toEqual('Entity not found');
-                    expect(err_1.data).toEqual(fakeId);
+                    expect(err_1.data).toEqual({ _id: fakeId });
                     expect(err_1.executedTransactions).toEqual(2);
                     expect(err_1.remainingTransactions).toEqual(1);
                     return [3 /*break*/, 5];
@@ -350,7 +350,7 @@ describe('Transaction using DB ', function () {
                 case 7:
                     err_5 = _a.sent();
                     expect(err_5.error.message).toEqual('Entity not found');
-                    expect(err_5.data).toEqual(fakeId);
+                    expect(err_5.data).toEqual({ _id: fakeId });
                     expect(err_5.executedTransactions).toEqual(2);
                     expect(err_5.remainingTransactions).toEqual(1);
                     return [3 /*break*/, 8];

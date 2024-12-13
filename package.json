@@ -1,71 +1,71 @@
 {
-  "name": "@anishghosh103/mongoose-transactions",
-  "version": "1.1.5",
-  "description": "Atomicity and Transactions for mongoose",
-  "main": "index.js",
-  "scripts": {
-    "lint": "tslint -c tslint.json 'src/**/*.ts' '__tests__/**/*.ts'",
-    "pretest": "npm run lint",
-    "test": "jest --forceExit --runInBand",
-    "test:local": "jest --forceExit --runInBand --detectOpenHandles --rootDir=./__tests__",
-    "build": "tsc -w false"
-  },
-  "pre-commit": [
-    "test:local"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/anishghosh103/mongoose-transactions.git"
-  },
-  "keywords": [
-    "mongoose",
-    "transactions"
-  ],
-  "author": "Nicola Bonavita @topperblues, Antonio D'Angelo @daton89",
-  "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/daton89-topperblues/mongoose-transactions/issues"
-  },
-  "homepage": "https://github.com/daton89-topperblues/mongoose-transactions#readme",
-  "peerDependencies": {
-    "mongoose": ">=4.11.1"
-  },
-  "devDependencies": {
-    "@types/core-js": "^2.5.3",
-    "@types/jest": "^25.1.4",
-    "@types/mongoose": "^5.7.7",
-    "@types/node": "^13.9.3",
-    "core-js": "^3.6.4",
-    "jest": "^25.1.0",
-    "mongoose": "^5.9.2",
-    "mongoose-delete": "^0.5.4",
-    "pre-commit": "^1.2.2",
-    "prettier": "^2.0.2",
-    "ts-jest": "^25.2.1",
-    "tslint": "^6.1.0",
-    "typescript": "^3.8.3"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "moduleFileExtensions": [
-      "ts",
-      "tsx",
-      "js"
-    ],
-    "transform": {
-      "\\.(ts|tsx)$": "ts-jest"
+    "name": "@anishghosh103/mongoose-transactions",
+    "version": "1.1.6",
+    "description": "Atomicity and Transactions for mongoose",
+    "main": "index.js",
+    "scripts": {
+        "lint": "tslint -c tslint.json 'src/**/*.ts' '__tests__/**/*.ts'",
+        "pretest": "npm run lint",
+        "test": "jest --forceExit --runInBand",
+        "test:local": "jest --forceExit --runInBand --detectOpenHandles --rootDir=./__tests__",
+        "build": "tsc -w false"
     },
-    "testRegex": "/__tests__/.*\\.(ts|tsx|js)$",
-    "verbose": true,
-    "notify": false,
-    "bail": false
-  },
-  "prettier": {
-    "semi": false,
-    "singleQuote": true,
-    "tabWidth": 4
-  },
-  "publishConfig": {
-    "access": "public"
-  }
+    "pre-commit": [
+        "test:local"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/anishghosh103/mongoose-transactions.git"
+    },
+    "keywords": [
+        "mongoose",
+        "transactions"
+    ],
+    "author": "Nicola Bonavita @topperblues, Antonio D'Angelo @daton89",
+    "license": "Apache-2.0",
+    "bugs": {
+        "url": "https://github.com/daton89-topperblues/mongoose-transactions/issues"
+    },
+    "homepage": "https://github.com/daton89-topperblues/mongoose-transactions#readme",
+    "peerDependencies": {
+        "mongoose": ">=4.11.1"
+    },
+    "devDependencies": {
+        "@types/core-js": "^2.5.3",
+        "@types/jest": "^25.1.4",
+        "@types/mongoose": "^5.7.7",
+        "@types/node": "^13.9.3",
+        "core-js": "^3.6.4",
+        "jest": "^25.1.0",
+        "mongoose": "^5.9.2",
+        "mongoose-delete": "^0.5.4",
+        "pre-commit": "^1.2.2",
+        "prettier": "^2.0.2",
+        "ts-jest": "^25.2.1",
+        "tslint": "^6.1.0",
+        "typescript": "^3.8.3"
+    },
+    "jest": {
+        "testEnvironment": "node",
+        "moduleFileExtensions": [
+            "ts",
+            "tsx",
+            "js"
+        ],
+        "transform": {
+            "\\.(ts|tsx)$": "ts-jest"
+        },
+        "testRegex": "/__tests__/.*\\.(ts|tsx|js)$",
+        "verbose": true,
+        "notify": false,
+        "bail": false
+    },
+    "prettier": {
+        "semi": false,
+        "singleQuote": true,
+        "tabWidth": 4
+    },
+    "publishConfig": {
+        "access": "public"
+    }
 }

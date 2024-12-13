@@ -1,8 +1,8 @@
 import * as mongoose from 'mongoose'
 import {
-  Operation,
-  Status,
-  TransactionModel,
+    Operation,
+    Status,
+    TransactionModel,
 } from './mongooseTransactions.collection'
 
 /** Class representing a transaction. */
@@ -93,9 +93,12 @@ export default class Transaction {
      */
     public async getOperations(transactionId = null) {
         if (transactionId) {
-            return await TransactionModel.findOne({ _id: transactionId })
+            const transaction = await TransactionModel.findOne({
+                _id: transactionId,
+            })
                 .lean()
                 .exec()
+            return transaction
         } else {
             return this.operations
         }
@@ -153,7 +156,7 @@ export default class Transaction {
 
         const operation: Operation = {
             data,
-            findId: data._id,
+            findObj: { _id: data._id },
             model,
             modelName,
             oldModel: null,
@@ -179,7 +182,32 @@ export default class Transaction {
 
         const operation: Operation = {
             data,
-            findId,
+            findObj: { _id: findId },
+            model,
+            modelName,
+            oldModel: null,
+            options,
+            rollbackType: 'update',
+            status: Status.pending,
+            type: 'update',
+        }
+
+        this.operations.push(operation)
+
+        return operation
+    }
+    /**
+     * Create the findOneAndUpdate transaction and rollback states.
+     * @param modelName - The string containing the mongoose model name.
+     * @param findObj - The filter to get the object to update.
+     * @param dataObj - The object containing data to update into mongoose model.
+     */
+    public updateOne(modelName, findObj, data, options = {}) {
+        const model = mongoose.model(modelName)
+
+        const operation: Operation = {
+            data,
+            findObj,
             model,
             modelName,
             oldModel: null,
@@ -197,14 +225,38 @@ export default class Transaction {
     /**
      * Create the remove transaction and rollback states.
      * @param modelName - The string containing the mongoose model name.
-     * @param findObj - The object containing data to find mongoose collection.
+     * @param findId - The id of the data to find.
      */
     public remove(modelName, findId, options = {}) {
         const model = mongoose.model(modelName)
 
         const operation: Operation = {
             data: null,
-            findId,
+            findObj: { _id: findId },
+            model,
+            modelName,
+            oldModel: null,
+            options,
+            rollbackType: 'insert',
+            status: Status.pending,
+            type: 'remove',
+        }
+
+        this.operations.push(operation)
+
+        return operation
+    }
+    /**
+     * Create the remove transaction and rollback states.
+     * @param modelName - The string containing the mongoose model name.
+     * @param findObj - The filter to get the data to find.
+     */
+    public removeOne(modelName, findObj, options = {}) {
+        const model = mongoose.model(modelName)
+
+        const operation: Operation = {
+            data: null,
+            findObj,
             model,
             modelName,
             oldModel: null,
@@ -247,30 +299,30 @@ export default class Transaction {
                         )
                         break
                     case 'update':
-                        operation = this.findByIdTransaction(
+                        operation = this.findOneTransaction(
                             transaction.model,
-                            transaction.findId,
+                            transaction.findObj,
                             transaction.options
                         ).then((findRes) => {
                             transaction.oldModel = findRes
                             return this.updateTransaction(
                                 transaction.model,
-                                transaction.findId,
+                                transaction.findObj,
                                 transaction.data,
                                 transaction.options
                             )
                         })
                         break
                     case 'remove':
-                        operation = this.findByIdTransaction(
+                        operation = this.findOneTransaction(
                             transaction.model,
-                            transaction.findId,
+                            transaction.findObj,
                             transaction.options
                         ).then((findRes) => {
                             transaction.oldModel = findRes
                             return this.removeTransaction(
                                 transaction.model,
-                                transaction.findId,
+                                transaction.findObj,
                                 transaction.options
                             )
                         })
@@ -342,13 +394,11 @@ export default class Transaction {
                         ) {
                             operation = new Promise(async (resolve, reject) => {
                                 const data = await transaction.model
-                                    .findOneWithDeleted({
-                                        _id: transaction.findId,
-                                    })
+                                    .findOneWithDeleted(transaction.findObj)
                                     .lean()
                                     .exec()
                                 transaction.model.restore(
-                                    { _id: transaction.findId },
+                                    transaction.findObj,
                                     (err) => {
                                         if (err) {
                                             return reject(
@@ -370,7 +420,7 @@ export default class Transaction {
                     case 'update':
                         operation = this.updateTransaction(
                             transaction.model,
-                            transaction.findId,
+                            transaction.findObj,
                             transaction.oldModel,
                             {
                                 withDeleted:
@@ -383,7 +433,7 @@ export default class Transaction {
                     case 'remove':
                         operation = this.removeTransaction(
                             transaction.model,
-                            transaction.findId
+                            transaction.findObj
                         )
                         break
                 }
@@ -410,9 +460,9 @@ export default class Transaction {
         }, Promise.resolve([]))
     }
 
-    private async findByIdTransaction(
+    private async findOneTransaction(
         model,
-        findId,
+        findObj,
         options = { withDeleted: false }
     ) {
         let fn = 'findOne'
@@ -422,7 +472,7 @@ export default class Transaction {
         ) {
             fn = 'findOneWithDeleted'
         }
-        return await model[fn]({ _id: findId }).lean().exec()
+        return await model[fn](findObj).lean().exec()
     }
 
     private async createTransaction() {
@@ -430,12 +480,17 @@ export default class Transaction {
             throw new Error('You must set useDB true in the constructor')
         }
 
-        const transaction = await TransactionModel.create({
-            operations: this.operations,
-            rollbackIndex: this.rollbackIndex,
-        })
+        const transaction = await TransactionModel.create(
+            [
+                {
+                    operations: this.operations,
+                    rollbackIndex: this.rollbackIndex,
+                },
+            ],
+            { checkKeys: false }
+        )
 
-        this.transactionId = transaction._id
+        this.transactionId = transaction[0]._id
 
         return transaction
     }
@@ -454,7 +509,7 @@ export default class Transaction {
 
     private updateTransaction(
         model,
-        id,
+        findObj,
         data,
         options: { new?: boolean; withDeleted?: boolean } = {
             new: false,
@@ -470,15 +525,15 @@ export default class Transaction {
             ) {
                 fn = 'findOneAndUpdateWithDeleted'
             }
-            model[fn]({ _id: id }, data, updateOptions, (err, result) => {
+            model[fn](findObj, data, updateOptions, (err, result) => {
                 if (err) {
-                    return reject(this.transactionError(err, { id, data }))
+                    return reject(this.transactionError(err, { findObj, data }))
                 } else {
                     if (!result) {
                         return reject(
                             this.transactionError(
                                 new Error('Entity not found'),
-                                { id, data }
+                                { findObj, data }
                             )
                         )
                     }
@@ -490,7 +545,7 @@ export default class Transaction {
 
     private removeTransaction(
         model,
-        id,
+        findObj,
         options: { withDeleted?: boolean } = { withDeleted: false }
     ) {
         return new Promise(async (resolve, reject) => {
@@ -499,32 +554,35 @@ export default class Transaction {
                 model.findOneWithDeleted
             ) {
                 const data = await model
-                    .findOneWithDeleted({ _id: id })
+                    .findOneWithDeleted(findObj)
                     .lean()
                     .exec()
                 if (!data) {
                     return reject(
-                        this.transactionError(new Error('Entity not found'), id)
+                        this.transactionError(
+                            new Error('Entity not found'),
+                            findObj
+                        )
                     )
                 }
-                model.deleteById(id, (err) => {
+                model.delete(findObj, (err) => {
                     if (err) {
-                        return reject(this.transactionError(err, id))
+                        return reject(this.transactionError(err, findObj))
                     } else {
                         return resolve(data)
                     }
                 })
                 return
             }
-            model.findOneAndRemove({ _id: id }, (err, data) => {
+            model.findOneAndRemove(findObj, (err, data) => {
                 if (err) {
-                    return reject(this.transactionError(err, id))
+                    return reject(this.transactionError(err, findObj))
                 } else {
                     if (data == null) {
                         return reject(
                             this.transactionError(
                                 new Error('Entity not found'),
-                                id
+                                findObj
                             )
                         )
                     } else {

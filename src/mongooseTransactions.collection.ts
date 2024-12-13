@@ -6,7 +6,7 @@ export const enum Status {
     success = 'Success',
     error = 'Error',
     rollback = 'Rollback',
-    errorRollback = 'ErrorRollback'
+    errorRollback = 'ErrorRollback',
 }
 
 export interface Operation {
@@ -20,8 +20,8 @@ export interface Operation {
     modelName: string
     /** The mongoose model instance before transaction if exists */
     oldModel: any
-    /** The id of the object */
-    findId: any
+    /** The filter to get the object */
+    findObj: any
     /** The data */
     data: any
     /** options configuration query */
@@ -41,8 +41,8 @@ export const TransactionSchema = new mongoose.Schema({
     rollbackIndex: Number,
     status: {
         default: 'pending',
-        type: String
-    }
+        type: String,
+    },
 })
 
 export const TransactionModel = mongoose.model<ITransactionSchema>(

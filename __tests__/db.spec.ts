@@ -14,10 +14,10 @@ describe('Transaction using DB ', () => {
     }
 
     mongoose.connection
-    .once('open', () => {
-        console.log('Mongo connected!')
-    })
-    .on('error', err => console.warn('Warning', err))
+        .once('open', () => {
+            console.log('Mongo connected!')
+        })
+        .on('error', (err) => console.warn('Warning', err))
 
     let transaction: Transaction
 
@@ -162,7 +162,7 @@ describe('Transaction using DB ', () => {
             const final = await transaction.run()
         } catch (err) {
             expect(err.error.message).toEqual('Entity not found')
-            expect(err.data).toEqual(fakeId)
+            expect(err.data).toEqual({ _id: fakeId })
             expect(err.executedTransactions).toEqual(2)
             expect(err.remainingTransactions).toEqual(1)
         }
@@ -248,7 +248,7 @@ describe('Transaction using DB ', () => {
                 const final = await newTransaction.run()
             } catch (err) {
                 expect(err.error.message).toEqual('Entity not found')
-                expect(err.data).toEqual(fakeId)
+                expect(err.data).toEqual({ _id: fakeId })
                 expect(err.executedTransactions).toEqual(2)
                 expect(err.remainingTransactions).toEqual(1)
             }

@@ -38,7 +38,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var main_1 = require("../src/main");
 var mongoose = require("mongoose");
-var mongoose_delete_1 = require("mongoose-delete");
+var MongooseDelete = require("mongoose-delete");
 var options = {
     useCreateIndex: true,
     useFindAndModify: false,
@@ -47,9 +47,9 @@ var options = {
 };
 // @ts-ignore
 mongoose.Promise = global.Promise;
-// mongoose.connection
-// .once('open', () => { })
-// .on('error', (err) => console.warn('Warning', err))
+mongoose.connection
+    // .once('open', () => {})
+    .on('error', function (err) { return console.warn('Warning', err); });
 var personSchema = new mongoose.Schema({
     age: Number,
     contact: {
@@ -63,7 +63,7 @@ var personSchema = new mongoose.Schema({
     },
     name: String,
 });
-personSchema.plugin(mongoose_delete_1.default, { overrideMethods: 'all' });
+personSchema.plugin(MongooseDelete, { overrideMethods: 'all' });
 var carSchema = new mongoose.Schema({
     age: Number,
     name: String,
@@ -237,6 +237,40 @@ describe('Transaction run ', function () {
             }
         });
     }); });
+    test('removeOne', function () { return __awaiter(void 0, void 0, void 0, function () {
+        var person, bobObject, aliceObject, personId, final, bob, alice;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    person = 'Person';
+                    bobObject = {
+                        age: 45,
+                        name: 'Bob',
+                    };
+                    aliceObject = {
+                        age: 23,
+                        name: 'Alice',
+                    };
+                    personId = transaction.insert(person, bobObject);
+                    transaction.update(person, personId, { $set: aliceObject });
+                    transaction.removeOne(person, { name: 'Alice' });
+                    return [4 /*yield*/, transaction.run()];
+                case 1:
+                    final = _a.sent();
+                    return [4 /*yield*/, Person.findOne(bobObject).exec()];
+                case 2:
+                    bob = _a.sent();
+                    return [4 /*yield*/, Person.findOne(aliceObject).exec()];
+                case 3:
+                    alice = _a.sent();
+                    expect(final).toBeInstanceOf(Array);
+                    expect(final.length).toBe(3);
+                    expect(alice).toBeNull();
+                    expect(bob).toBeNull();
+                    return [2 /*return*/];
+            }
+        });
+    }); });
     test('remove (soft-delete)', function () { return __awaiter(void 0, void 0, void 0, function () {
         var person, bobObject, personId, final, bob, bobWithDeleted;
         return __generator(this, function (_a) {
@@ -299,7 +333,7 @@ describe('Transaction run ', function () {
                     expect(error_2.executedTransactions).toEqual(2);
                     expect(error_2.remainingTransactions).toEqual(1);
                     expect(error_2.error.message).toBe('Entity not found');
-                    expect(error_2.data).toEqual(failObjectId);
+                    expect(error_2.data).toEqual({ _id: failObjectId });
                     return [3 /*break*/, 4];
                 case 4: return [2 /*return*/];
             }
@@ -336,7 +370,7 @@ describe('Transaction run ', function () {
                     expect(error_3.executedTransactions).toEqual(2);
                     expect(error_3.remainingTransactions).toEqual(1);
                     expect(error_3.error.message).toBe('Entity not found');
-                    expect(error_3.data).toEqual(failObjectId);
+                    expect(error_3.data).toEqual({ _id: failObjectId });
                     return [4 /*yield*/, transaction
                             .rollback()
                             .catch(console.error)
@@ -404,7 +438,7 @@ describe('Transaction run ', function () {
                     expect(error_4.executedTransactions).toEqual(3);
                     expect(error_4.remainingTransactions).toEqual(1);
                     expect(error_4.error.message).toBe('Entity not found');
-                    expect(error_4.data).toEqual(failObjectId);
+                    expect(error_4.data).toEqual({ _id: failObjectId });
                     return [4 /*yield*/, transaction.rollback().catch(console.error)
                         // expect(rollbacks).toBeNaN()
                         // First revert update of bob object to alice
@@ -493,7 +527,7 @@ describe('Transaction run ', function () {
                     expect(error_5.executedTransactions).toEqual(5);
                     expect(error_5.remainingTransactions).toEqual(3);
                     expect(error_5.error.message).toBe('Entity not found');
-                    expect(error_5.data.id).toEqual(aliceId);
+                    expect(error_5.data.findObj._id).toEqual(aliceId);
                     expect(error_5.data.data.name).toEqual('Error');
                     return [4 /*yield*/, transaction.rollback().catch(console.error)];
                 case 6:

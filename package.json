@@ -1,6 +1,6 @@
 {
     "name": "@anishghosh103/mongoose-transactions",
-    "version": "1.1.8",
+    "version": "2.0.0",
     "description": "Atomicity and Transactions for mongoose",
     "main": "index.js",
     "scripts": {

@@ -1,0 +1,27 @@
+name: publish
+
+on:
+    push:
+        tags:
+            - 'v*.*.*' # This triggers the workflow for tags matching the pattern v*.*.*
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 18
+
+            - run: npm ci
+
+            - run: npm run build
+
+            - run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_AUTH_TOKEN }}" > ~/.npmrc
+
+            - run: npm publish
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}

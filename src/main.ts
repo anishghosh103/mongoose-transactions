@@ -138,10 +138,11 @@ export default class Transaction {
      */
     public insert(
         modelName: string,
+        schema,
         data,
         options = {}
     ): mongoose.Types.ObjectId {
-        const model = mongoose.model(modelName)
+        const model = mongoose.model(modelName, schema)
 
         if (!data._id) {
             data._id = new mongoose.Types.ObjectId()
@@ -170,8 +171,8 @@ export default class Transaction {
      * @param findId - The id of the object to update.
      * @param dataObj - The object containing data to update into mongoose model.
      */
-    public update(modelName, findId, data, options = {}) {
-        const model = mongoose.model(modelName)
+    public update(modelName, schema, findId, data,  options = {}) {
+        const model = mongoose.model(modelName, schema)
 
         const operation: Operation = {
             data,
@@ -195,8 +196,8 @@ export default class Transaction {
      * @param modelName - The string containing the mongoose model name.
      * @param findObj - The object containing data to find mongoose collection.
      */
-    public remove(modelName, findId, options = {}) {
-        const model = mongoose.model(modelName)
+    public remove(modelName, schema, findId, options = {}) {
+        const model = mongoose.model(modelName, schema)
 
         const operation: Operation = {
             data: null,
@@ -232,8 +233,8 @@ export default class Transaction {
         const final = []
 
         return this.operations.reduce((promise, transaction, index) => {
-            return promise.then(async result => {
-                let operation: any = {}
+            return promise.then(async () => {
+                let operation
 
                 switch (transaction.type) {
                     case 'insert':
@@ -309,7 +310,7 @@ export default class Transaction {
             await this.createTransaction()
         }
 
-        let transactionsToRollback: any = this.operations.slice(
+        let transactionsToRollback = this.operations.slice(
             0,
             this.rollbackIndex + 1
         )
@@ -323,8 +324,8 @@ export default class Transaction {
         const final = []
 
         return transactionsToRollback.reduce((promise, transaction, index) => {
-            return promise.then(result => {
-                let operation: any = {}
+            return promise.then(() => {
+                let operation
 
                 switch (transaction.rollbackType) {
                     case 'insert':
@@ -387,71 +388,44 @@ export default class Transaction {
             rollbackIndex: this.rollbackIndex
         })
 
-        this.transactionId = transaction._id
+        this.transactionId = transaction._id ? transaction._id as string : ''
 
         return transaction
     }
 
     private insertTransaction(model, data) {
-        return new Promise((resolve, reject) => {
-            model.create(data, (err, result) => {
-                if (err) {
-                    return reject(this.transactionError(err, data))
-                } else {
-                    return resolve(result)
-                }
-            })
-        })
+        return model.create(data).then(result => result).catch(err => this.transactionError(err, data))
     }
 
     private updateTransaction(model, id, data, options = { new: false }) {
-        return new Promise((resolve, reject) => {
-            model.findOneAndUpdate(
-                { _id: id },
-                data,
-                options,
-                (err, result) => {
-                    if (err) {
-                        return reject(this.transactionError(err, { id, data }))
-                    } else {
-                        if (!result) {
-                            return reject(
-                                this.transactionError(
-                                    new Error('Entity not found'),
-                                    { id, data }
-                                )
-                            )
-                        }
-                        return resolve(result)
-                    }
+        return model.findOneAndUpdate(
+            { _id: id },
+            data,
+            options)
+            .then(result => {
+                if (!result) {
+                    this.transactionError(
+                        new Error('Entity not found'),
+                        { id, data }
+                    )
                 }
-            )
-        })
+                return result
+            }).catch(err => this.transactionError(err, { id, data }))
     }
 
     private removeTransaction(model, id) {
-        return new Promise((resolve, reject) => {
-            model.findOneAndRemove({ _id: id }, (err, data) => {
-                if (err) {
-                    return reject(this.transactionError(err, id))
+        return model.findOneAndDelete({ _id: id })
+            .then(result => {
+                if (!result) {
+                    this.transactionError(new Error('Entity not found'), id)
                 } else {
-                    if (data == null) {
-                        return reject(
-                            this.transactionError(
-                                new Error('Entity not found'),
-                                id
-                            )
-                        )
-                    } else {
-                        return resolve(data)
-                    }
+                    return result
                 }
-            })
-        })
+            }).catch(err => this.transactionError(err, id))
     }
 
     private transactionError(error, data) {
-        return {
+        throw {
             data,
             error,
             executedTransactions: this.rollbackIndex + 1,

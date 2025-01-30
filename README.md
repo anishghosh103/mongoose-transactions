@@ -1,4 +1,3 @@
-[![travis](https://travis-ci.org/daton89-topperblues/mongoose-transactions.svg?branch=master)](https://www.npmjs.com/package/mongoose-transactions)
 [![dm](https://img.shields.io/npm/dm/mongoose-transactions.svg)](https://www.npmjs.com/package/mongoose-transactions)
 [![version](https://img.shields.io/npm/v/mongoose-transactions.svg)](https://www.npmjs.com/package/mongoose-transactions)
 [![GitHub stars](https://img.shields.io/github/stars/daton89-topperblues/mongoose-transactions.svg?style=social&label=Star)](https://www.github.com/daton89-topperblues/mongoose-transactions)

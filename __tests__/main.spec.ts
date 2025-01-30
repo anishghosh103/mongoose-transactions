@@ -3,18 +3,11 @@ import Transaction from '../src/main'
 import * as mongoose from 'mongoose'
 import MongooseDelete = require('mongoose-delete')
 
-const options: any = {
-    useCreateIndex: true,
-    useFindAndModify: false,
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}
-
-// @ts-ignore
+// @ts-expect-error private variable
 mongoose.Promise = global.Promise
 
 mongoose.connection
-    // .once('open', () => {})
+    // .once('open', () => { })
     .on('error', (err) => console.warn('Warning', err))
 
 const personSchema = new mongoose.Schema({
@@ -54,8 +47,7 @@ describe('Transaction run ', () => {
 
     beforeAll(async () => {
         await mongoose.connect(
-            `mongodb://127.0.0.1:27017/mongoose-transactions`,
-            options
+            `mongodb://127.0.0.1:27017/mongoose-transactions`
         )
     })
 
@@ -69,9 +61,9 @@ describe('Transaction run ', () => {
     })
 
     test('insert', async () => {
-        const person: string = 'Person'
+        const person = 'Person'
 
-        const jonathanObject: any = {
+        const jonathanObject = {
             age: 18,
             name: 'Jonathan',
         }
@@ -80,7 +72,7 @@ describe('Transaction run ', () => {
 
         const final = await transaction.run().catch(console.error)
 
-        const jonathan: any = await Person.findOne(jonathanObject).exec()
+        const jonathan = await Person.findOne(jonathanObject).exec()
 
         expect(jonathan.name).toBe(jonathanObject.name)
 
@@ -92,15 +84,15 @@ describe('Transaction run ', () => {
     })
 
     test('it should raise a duplicate key error', async () => {
-        const person: string = 'Person'
+        const person = 'Person'
 
-        const jonathanObject: any = {
+        const jonathanObject = {
             age: 18,
             email: 'myemail@blabla.com',
             name: 'Jonathan',
         }
 
-        const tonyObject: any = {
+        const tonyObject = {
             age: 29,
             email: 'myemail@blabla.com',
             name: 'tony',
@@ -122,14 +114,14 @@ describe('Transaction run ', () => {
     })
 
     test('update', async () => {
-        const person: string = 'Person'
+        const person = 'Person'
 
-        const tonyObject: any = {
+        const tonyObject = {
             age: 28,
             name: 'Tony',
         }
 
-        const nicolaObject: any = {
+        const nicolaObject = {
             age: 32,
             name: 'Nicola',
         }
@@ -140,7 +132,7 @@ describe('Transaction run ', () => {
 
         const final = await transaction.run()
 
-        const nicola: any = await Person.findOne(nicolaObject).exec()
+        const nicola = await Person.findOne(nicolaObject).exec()
 
         expect(nicola.name).toBe(nicolaObject.name)
 
@@ -152,14 +144,14 @@ describe('Transaction run ', () => {
     })
 
     test('remove', async () => {
-        const person: string = 'Person'
+        const person = 'Person'
 
-        const bobObject: any = {
+        const bobObject = {
             age: 45,
             name: 'Bob',
         }
 
-        const aliceObject: any = {
+        const aliceObject = {
             age: 23,
             name: 'Alice',
         }
@@ -172,9 +164,9 @@ describe('Transaction run ', () => {
 
         const final = await transaction.run()
 
-        const bob: any = await Person.findOne(bobObject).exec()
+        const bob = await Person.findOne(bobObject).exec()
 
-        const alice: any = await Person.findOne(aliceObject).exec()
+        const alice = await Person.findOne(aliceObject).exec()
 
         expect(final).toBeInstanceOf(Array)
 
@@ -247,14 +239,14 @@ describe('Transaction run ', () => {
     })
 
     test('Fail remove', async () => {
-        const person: string = 'Person'
+        const person = 'Person'
 
-        const bobObject: any = {
+        const bobObject = {
             age: 45,
             name: 'Bob',
         }
 
-        const aliceObject: any = {
+        const aliceObject = {
             age: 23,
             name: 'Alice',
         }
@@ -270,27 +262,27 @@ describe('Transaction run ', () => {
         expect(personId).not.toEqual(failObjectId)
 
         try {
-            const final = await transaction.run()
+            await transaction.run()
         } catch (error) {
             expect(error.executedTransactions).toEqual(2)
 
             expect(error.remainingTransactions).toEqual(1)
 
-            expect(error.error.message).toBe('Entity not found')
+            expect(error.error.error.message).toBe('Entity not found')
 
             expect(error.data).toEqual({ _id: failObjectId })
         }
     })
 
     test('Fail remove with rollback', async () => {
-        const person: string = 'Person'
+        const person = 'Person'
 
-        const bobObject: any = {
+        const bobObject = {
             age: 45,
             name: 'Bob',
         }
 
-        const aliceObject: any = {
+        const aliceObject = {
             age: 23,
             name: 'Alice',
         }
@@ -306,13 +298,13 @@ describe('Transaction run ', () => {
         expect(personId).not.toEqual(failObjectId)
 
         try {
-            const final = await transaction.run()
+            await transaction.run()
         } catch (error) {
             expect(error.executedTransactions).toEqual(2)
 
             expect(error.remainingTransactions).toEqual(1)
 
-            expect(error.error.message).toBe('Entity not found')
+            expect(error.error.error.message).toBe('Entity not found')
 
             expect(error.data).toEqual({ _id: failObjectId })
 
@@ -330,14 +322,14 @@ describe('Transaction run ', () => {
     })
 
     test('Fail remove with rollback and clean, multiple update, run and insert', async () => {
-        const person: string = 'Person'
+        const person = 'Person'
 
-        const bobObject: any = {
+        const bobObject = {
             age: 45,
             name: 'Bob',
         }
 
-        const aliceObject: any = {
+        const aliceObject = {
             age: 23,
             name: 'Alice',
         }
@@ -346,7 +338,7 @@ describe('Transaction run ', () => {
 
         const insertRun = await transaction.run()
 
-        const bobFind: any = await Person.findOne({ _id: bobId }).exec()
+        const bobFind = await Person.findOne({ _id: bobId }).exec()
         expect(bobFind.name).toBe(bobObject.name)
         expect(bobFind.age).toBe(bobObject.age)
         expect(insertRun).toBeInstanceOf(Array)
@@ -371,7 +363,7 @@ describe('Transaction run ', () => {
         expect(aliceId).not.toEqual(failObjectId)
 
         try {
-            const final = await transaction.run()
+            await transaction.run()
         } catch (error) {
             // expect(error).toBeNaN()
 
@@ -379,7 +371,7 @@ describe('Transaction run ', () => {
 
             expect(error.remainingTransactions).toEqual(1)
 
-            expect(error.error.message).toBe('Entity not found')
+            expect(error.error.error.message).toBe('Entity not found')
 
             expect(error.data).toEqual({ _id: failObjectId })
 
@@ -394,34 +386,34 @@ describe('Transaction run ', () => {
             expect(rollbacks[1].name).toBe('Maria')
             expect(rollbacks[1].age).toBe(bobObject.age)
 
-            const bob: any = await Person.findOne({ _id: bobId }).exec()
+            const bob = await Person.findOne({ _id: bobId }).exec()
             expect(bob.name).toBe(bobObject.name)
             expect(bob.age).toBe(bobObject.age)
 
-            const alice: any = await Person.findOne(aliceObject).exec()
+            const alice = await Person.findOne(aliceObject).exec()
             expect(alice).toBeNull()
         }
     })
 
     test('Fail update with rollback and clean, multiple update, run and remove', async () => {
-        const person: string = 'Person'
+        const person = 'Person'
 
-        const bobObject: any = {
+        const bobObject = {
             age: 45,
             name: 'Bob',
         }
 
-        const aliceObject: any = {
+        const aliceObject = {
             age: 23,
             name: 'Alice',
         }
 
-        const mariaObject: any = {
+        const mariaObject = {
             age: 43,
             name: 'Maria',
         }
 
-        const giuseppeObject: any = {
+        const giuseppeObject = {
             age: 33,
             name: 'Giuseppe',
         }
@@ -430,7 +422,7 @@ describe('Transaction run ', () => {
 
         const insertRun = await transaction.run()
 
-        const bobFind: any = await Person.findOne({ _id: bobId }).exec()
+        const bobFind = await Person.findOne({ _id: bobId }).exec()
         expect(bobFind.name).toBe(bobObject.name)
         expect(bobFind.age).toBe(bobObject.age)
         expect(insertRun).toBeInstanceOf(Array)
@@ -460,7 +452,7 @@ describe('Transaction run ', () => {
         transaction.insert(person, { name: 'unreachable' })
 
         try {
-            const final = await transaction.run()
+            await transaction.run()
         } catch (error) {
             // expect(error).toBeNaN()
 
@@ -468,7 +460,7 @@ describe('Transaction run ', () => {
 
             expect(error.remainingTransactions).toEqual(3)
 
-            expect(error.error.message).toBe('Entity not found')
+            expect(error.error.error.message).toBe('Entity not found')
 
             expect(error.data.findObj._id).toEqual(aliceId)
             expect(error.data.data.name).toEqual('Error')
@@ -486,7 +478,7 @@ describe('Transaction run ', () => {
             expect(rollbacks[4].name).toEqual(aliceObject.name)
             expect(rollbacks[4].age).toEqual(aliceObject.age)
 
-            const results: any = await Person.find({}).lean().exec()
+            const results = await Person.find({}).lean().exec()
 
             expect(results.length).toBe(1)
             expect(results[0].name).toEqual(bobObject.name)

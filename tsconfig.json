@@ -1,14 +1,13 @@
 {
     "compilerOptions": {
-        "target": "es5",
+        "target": "ESNext",
         "module": "commonjs",
         "moduleResolution": "node",
         "sourceRoot": "src",
         "outDir": "dist",
-        "watch": true,
         "types": ["node", "jest", "core-js"],
         "sourceMap": true,
-        "lib": ["es2015"]
+        "lib": ["ESNext", "DOM"]
     },
     "compileOnSave": true
 }
